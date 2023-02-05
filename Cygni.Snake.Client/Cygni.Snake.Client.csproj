@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<PackageId>Cygni.Snake.Client</PackageId>
+		<Version>0.1.0</Version>
+		<Authors>Mårten Åsberg</Authors>
+		<PackageDescription>A modern SnakeBot client</PackageDescription>
+	</PropertyGroup>
+</Project>
