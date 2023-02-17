@@ -55,7 +55,7 @@ public class ControllerObject : IDisposable
 		logger.LogDebug($"Map update {tickAndTime}");
 	}
 
-	private void OnUpdate(float deltaTime)
+	private async void OnUpdate(float deltaTime)
 	{
 		if (input.Up())
 		{
@@ -84,21 +84,37 @@ public class ControllerObject : IDisposable
 
 		if (tickAndTime is (long tick, float time) && gameManager.Time > time + timePerTick * 0.75f)
 		{
-			if (directionQueue.TryDequeue(out Direction dir))
+			if (GetMove(tick) is Direction dir)
 			{
-				client.SendMessage(new RegisterMove(gameId, tick, dir));
-				logger.LogDebug($"Register user move {dir} for tick {tick}");
-			}
-			else if (controller.ProposedDirection is Direction proposedDir)
-			{
-				client.SendMessage(new RegisterMove(gameId, tick, proposedDir));
-				logger.LogDebug($"Register calculated move {proposedDir} for tick {tick}");
+				await client.SendMessage(new RegisterMove(gameId, tick, dir));
+				if (gameManager.Time > time + timePerTick)
+				{
+					logger.LogWarning($"Move for tick {tick} might have been registered too late");
+				}
 			}
 			else
 			{
 				logger.LogDebug($"No move registered for tick {tick}");
 			}
 			tickAndTime = null;
+		}
+	}
+
+	private Direction? GetMove(long tick)
+	{
+		if (directionQueue.TryDequeue(out Direction dir))
+		{
+			logger.LogDebug($"Register user move {dir} for tick {tick}");
+			return dir;
+		}
+		else if (controller.ProposedDirection is Direction proposedDir)
+		{
+			logger.LogDebug($"Register calculated move {proposedDir} for tick {tick}");
+			return proposedDir;
+		}
+		else
+		{
+			return null;
 		}
 	}
 
