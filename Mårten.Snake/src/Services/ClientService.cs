@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Cygni.Snake.Client;
 using Cygni.Snake.Client.Messages;
 using Cygni.Snake.Client.Models;
+using Cygni.Snake.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SnakeClient = Cygni.Snake.Client.Client;

@@ -1,5 +1,6 @@
 using System;
-using Mårten.Snake.Models;
+using Cygni.Snake.Client.Models;
+using Cygni.Snake.Utils;
 using Mårten.Snake.Services;
 using SkiaSharp;
 using Zarya;
@@ -10,7 +11,6 @@ namespace Mårten.Snake.GameObjects;
 public class TileObject : ISkiaSharpRenderable, IDisposable
 {
 	private static readonly SKColor ObstacleColor = new(0xFF000000);
-	private static readonly SKColor BorderColor = new(0xFF000000);
 	private static readonly string FoodPath = "Mårten.Snake.assets.star.png";
 
 	public Transform2D Transform { get; } = new();
@@ -33,7 +33,6 @@ public class TileObject : ISkiaSharpRenderable, IDisposable
 
 	public void Render(SKCanvas canvas)
 	{
-		RenderBorder(canvas);
 		RenderIcon(canvas);
 	}
 
@@ -75,19 +74,19 @@ public class TileObject : ISkiaSharpRenderable, IDisposable
 	{
 		canvas.Save();
 		canvas.Scale(Size);
-		if (tile.Previous is int prev)
+		if (tile.Previous is Vector2 prev)
 		{
-			if (prev + 1 == tile.Current)
+			switch (prev - tile.Current)
 			{
-				canvas.RotateRadians(MathF.PI / 2, 0.5f, 0.5f);
-			}
-			else if (prev - 1 == tile.Current)
-			{
-				canvas.RotateRadians(-MathF.PI / 2, 0.5f, 0.5f);
-			}
-			else if (prev < tile.Current)
-			{
-				canvas.RotateRadians(MathF.PI, 0.5f, 0.5f);
+				case (1, 0):
+					canvas.RotateRadians(-MathF.PI / 2, 0.5f, 0.5f);
+					break;
+				case (-1, 0):
+					canvas.RotateRadians(MathF.PI / 2, 0.5f, 0.5f);
+					break;
+				case (0, -1):
+					canvas.RotateRadians(MathF.PI, 0.5f, 0.5f);
+					break;
 			}
 		}
 
@@ -156,20 +155,18 @@ public class TileObject : ISkiaSharpRenderable, IDisposable
 		canvas.Restore();
 
 		static bool IsHorizontal(SnakeBodyTile tile) =>
-			(tile.Previous + 1 == tile.Current && tile.Current == tile.Next - 1) ||
-				(tile.Next + 1 == tile.Current && tile.Current == tile.Previous - 1);
+			DirectionsFromCurrent(tile) is (Direction.Left, Direction.Right) or (Direction.Right, Direction.Left);
 		static bool IsVertical(SnakeBodyTile tile) =>
-			(tile.Previous + 1 < tile.Current && tile.Current < tile.Next - 1) ||
-				(tile.Next + 1 < tile.Current && tile.Current < tile.Previous - 1);
+			DirectionsFromCurrent(tile) is (Direction.Up, Direction.Down) or (Direction.Down, Direction.Up);
 		static bool IsNorthEastTurn(SnakeBodyTile tile) =>
-			(tile.Previous + 1 < tile.Current && tile.Current == tile.Next - 1) ||
-				(tile.Next + 1 < tile.Current && tile.Current == tile.Previous - 1);
+			DirectionsFromCurrent(tile) is (Direction.Up, Direction.Right) or (Direction.Right, Direction.Up);
 		static bool IsNorthWestTurn(SnakeBodyTile tile) =>
-			(tile.Previous + 1 < tile.Current && tile.Current == tile.Next + 1) ||
-				(tile.Next + 1 < tile.Current && tile.Current == tile.Previous + 1);
+			DirectionsFromCurrent(tile) is (Direction.Up, Direction.Left) or (Direction.Left, Direction.Up);
 		static bool IsSouthWestTurn(SnakeBodyTile tile) =>
-			(tile.Previous - 1 > tile.Current && tile.Current == tile.Next + 1) ||
-				(tile.Next - 1 > tile.Current && tile.Current == tile.Previous + 1);
+			DirectionsFromCurrent(tile) is (Direction.Down, Direction.Left) or (Direction.Left, Direction.Down);
+
+		static (Direction, Direction) DirectionsFromCurrent(SnakeBodyTile tile) =>
+			(Vector2.ReverseDirections[tile.Next - tile.Current], Vector2.ReverseDirections[tile.Previous - tile.Current]);
 	}
 
 	private void RenderBodyStraight(SKCanvas canvas, SnakeBodyTile tile)
@@ -200,19 +197,19 @@ public class TileObject : ISkiaSharpRenderable, IDisposable
 	{
 		canvas.Save();
 		canvas.Scale(Size);
-		if (tile.Next is int prev)
+		if (tile.Next is Vector2 next)
 		{
-			if (prev + 1 == tile.Current)
+			switch (tile.Current - next)
 			{
-				canvas.RotateRadians(-MathF.PI / 2, 0.5f, 0.5f);
-			}
-			else if (prev - 1 == tile.Current)
-			{
-				canvas.RotateRadians(MathF.PI / 2, 0.5f, 0.5f);
-			}
-			else if (prev > tile.Current)
-			{
-				canvas.RotateRadians(MathF.PI, 0.5f, 0.5f);
+				case (1, 0):
+					canvas.RotateRadians(-MathF.PI / 2, 0.5f, 0.5f);
+					break;
+				case (-1, 0):
+					canvas.RotateRadians(MathF.PI / 2, 0.5f, 0.5f);
+					break;
+				case (0, -1):
+					canvas.RotateRadians(MathF.PI, 0.5f, 0.5f);
+					break;
 			}
 		}
 
@@ -232,17 +229,6 @@ public class TileObject : ISkiaSharpRenderable, IDisposable
 		path.LineTo(1.0f, 0.0f);
 		return path;
 	});
-
-	private void RenderBorder(SKCanvas canvas)
-	{
-		using var border = new SKPaint
-		{
-			Color = BorderColor,
-			IsStroke = true,
-			StrokeWidth = 1,
-		};
-		canvas.DrawRect(0, 0, Size, Size, border);
-	}
 
 	public void Dispose()
 	{

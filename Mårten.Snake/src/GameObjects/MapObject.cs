@@ -1,34 +1,37 @@
 using System;
 using System.Collections.Generic;
 using Cygni.Snake.Client.Messages;
-using Cygni.Snake.Client.Models;
-using Mårten.Snake.Models;
+using Cygni.Snake.Utils;
 using Mårten.Snake.Services;
 using SkiaSharp;
 using Zarya.Silk.NET;
 using Zarya.SkiaSharp;
 using Zarya;
+using System.Linq;
 
 namespace Mårten.Snake.GameObjects;
 
 public class MapObject : ISkiaSharpRenderable, IDisposable
 {
 	private static readonly SKColor BackgroundColor = new(0xFF11295A);
+	private static readonly SKColor BorderColor = new(0xFF000000);
 
-	private readonly ClientService client;
+	private readonly MapInfoService mapInfoService;
 	private readonly SilkWindow window;
 	private readonly SkiaSharpRenderer renderer;
 
-	private readonly IList<TileObject> tiles = new List<TileObject>();
-	private Map? map;
+	private readonly IDictionary<Vector2, TileObject> tiles = new Dictionary<Vector2, TileObject>();
+	private long lastUpdateTick = -1;
+	private MapInfo? mapInfo;
 	private int width = 0;
+	private int height = 0;
 
 	public Transform2D Transform { get; } = new Transform2D();
 
-	public MapObject(ClientService client, SilkWindow window, SkiaSharpRenderer renderer)
+	public MapObject(MapInfoService mapInfoService, SilkWindow window, SkiaSharpRenderer renderer)
 	{
-		this.client = client;
-		this.client.OnMapUpdateEvent += OnMapUpdateEvent;
+		this.mapInfoService = mapInfoService;
+		this.mapInfoService.OnMapInfoUpdateEvent += OnMapInfoUpdateEvent;
 
 		this.window = window;
 		this.window.Update += OnUpdate;
@@ -37,75 +40,88 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 		this.renderer.AddRenderable(this);
 	}
 
-	private void OnMapUpdateEvent(MapUpdateEvent mapUpdateEvent)
+	private void OnMapInfoUpdateEvent(MapInfo mapInfo)
 	{
-		map = mapUpdateEvent.Map;
-		width = map.Width;
+		width = mapInfo.Width;
+		height = mapInfo.Height;
+		this.mapInfo = mapInfo;
 	}
 
 	private void OnUpdate(float deltaTime)
 	{
-		if (map is not null)
+		if (mapInfo is not null && lastUpdateTick != mapInfo.WorldTick)
 		{
-			UpdateTiles();
+			UpdateTiles(mapInfo);
 		}
 	}
 
-	private void UpdateTiles()
+	private void UpdateTiles(MapInfo mapInfo)
 	{
-		var tileCount = map!.Width * map.Height;
+		var spares = new Stack<TileObject>();
 
-		while (tiles.Count < tileCount)
+		foreach (var (pos, tile) in tiles.ToArray())
 		{
-			tiles.Add(window.Create<TileObject>()!);
-		}
-		while (tiles.Count > tileCount)
-		{
-			window.Destroy(tiles[^1]);
-			tiles.RemoveAt(tiles.Count - 1);
-		}
-
-		foreach (var tile in tiles)
-		{
-			tile.Tile = EmptyTile.Instance;
-		}
-		foreach (var foodPosition in map.FoodPositions)
-		{
-			tiles[foodPosition].Tile = FoodTile.Instance;
-		}
-		foreach (var obstaclePosition in map.ObstaclePositions)
-		{
-			tiles[obstaclePosition].Tile = ObstacleTile.Instance;
-		}
-		foreach (var snake in map.SnakeInfos)
-		{
-			if (snake.Positions.Count > 0)
+			if (mapInfo[pos] is EmptyTile)
 			{
-				tiles[snake.Positions[0]].Tile = new SnakeHeadTile(snake.Id, snake.Positions.Count > 1 ? snake.Positions[1] : null, snake.Positions[0]);
-				for (int i = 1; i < snake.Positions.Count - 1; i++)
-				{
-					tiles[snake.Positions[i]].Tile = new SnakeBodyTile(snake.Id, snake.Positions[i - 1], snake.Positions[i], snake.Positions[i + 1]);
-				}
-				if (snake.Positions.Count > 1)
-				{
-					tiles[snake.Positions[^1]].Tile = new SnakeTailTile(snake.Id, snake.Positions[^1], snake.Positions[^2]);
-				}
+				spares.Push(tile);
+				tiles.Remove(pos);
 			}
+		}
+
+		foreach (var (pos, tileDescription) in mapInfo.Tiles)
+		{
+			if (!tiles.TryGetValue(pos, out var tile))
+			{
+				if (!spares.TryPop(out tile))
+				{
+					tile = window.Create<TileObject>()!;
+				}
+				tiles[pos] = tile;
+			}
+			tile.Tile = tileDescription;
+		}
+
+
+		foreach (var spare in spares)
+		{
+			window.Destroy(spare);
 		}
 	}
 
 	public void Render(SKCanvas canvas)
 	{
-		var (pixelWidth, pixelHeight) = CalculateMapSize();
-		float tileSize = CalculateTileSize();
+		RenderBackground(canvas);
+		RenderTiles(canvas);
+		RenderGrid(canvas);
+	}
 
+	private void RenderBackground(SKCanvas canvas)
+	{
+		var (pixelWidth, pixelHeight) = CalculateMapSize();
 		using var paint = new SKPaint { Color = BackgroundColor };
 		canvas.DrawRect(0, 0, pixelWidth, pixelHeight, paint);
+	}
 
-		for (int i = 0; i < tiles.Count; i++)
+	private void RenderTiles(SKCanvas canvas)
+	{
+		float tileSize = CalculateTileSize();
+		foreach (var (pos, tile) in tiles)
 		{
-			tiles[i].Size = tileSize;
-			tiles[i].Transform.Position = new(tileSize * (i % width), tileSize * (i / width));
+			tile.Size = tileSize;
+			tile.Transform.Position = new(pos.X * tileSize, pos.Y * tileSize);
+		}
+	}
+
+	private void RenderGrid(SKCanvas canvas)
+	{
+		if (mapInfo is not null)
+		{
+			using var paint = new SKPaint { Color = BorderColor, IsStroke = true, IsAntialias = true };
+			float tileSize = CalculateTileSize();
+			for (int x = 1; x < width; x++)
+				canvas.DrawLine(x * tileSize, 0, x * tileSize, height * tileSize, paint);
+			for (int y = 1; y < width; y++)
+				canvas.DrawLine(0, y * tileSize, width * tileSize, y * tileSize, paint);
 		}
 	}
 
@@ -117,7 +133,7 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 			return (0.0f, 0.0f);
 		}
 
-		return (tileSize * width, tileSize * (tiles.Count / width));
+		return (tileSize * width, tileSize * height);
 	}
 
 	private float CalculateTileSize()
@@ -127,14 +143,13 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 			return 0.0f;
 		}
 
-		int height = tiles.Count / width;
 		return Single.MinNumber((window.Height ?? Single.NaN) / height, (window.Width ?? Single.NaN) / width);
 	}
 
 	public void Dispose()
 	{
 		renderer.RemoveRenderable(this);
-		client.OnMapUpdateEvent -= OnMapUpdateEvent;
+		mapInfoService.OnMapInfoUpdateEvent -= OnMapInfoUpdateEvent;
 		window.Update -= OnUpdate;
 	}
 }

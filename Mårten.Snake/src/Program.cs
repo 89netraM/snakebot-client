@@ -28,6 +28,7 @@ builder.AddSkiaSharpRenderer();
 builder.Services.Configure<GameOptions>(config.GetSection("SnakeBot"));
 builder.Services.AddSingleton<ClientService>();
 builder.Services.AddSingleton<PlayerInfoService>();
+builder.Services.AddSingleton<MapInfoService>();
 builder.Services.AddSingleton<SnakeColor>();
 builder.Services.AddSingleton<SpritePool>();
 builder.Services.AddSingleton<InputService>();
