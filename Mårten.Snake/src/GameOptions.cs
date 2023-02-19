@@ -12,6 +12,7 @@ public class GameOptions
 	public string? ArenaId { get; set; } = null;
 	public string Controller { get; set; } = "Edge";
 	public GameSettings Settings { get; set; } = new GameSettings();
+	public float TickTimePercentage { get; set; } = 0.75f;
 
 	public Uri Uri => GameMode switch
 	{

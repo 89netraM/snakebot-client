@@ -2,6 +2,7 @@ using System;
 using Cygni.Snake.Client.Messages;
 using Cygni.Snake.Client.Models;
 using Mårten.Snake.Services;
+using Microsoft.Extensions.Options;
 using SkiaSharp;
 using Zarya;
 using Zarya.SkiaSharp;
@@ -14,6 +15,8 @@ public class TickCountDownObject : ISkiaSharpRenderable, IDisposable
 	private const float Thickness = 2.5f;
 	private const float ActualRadius = Radius - Thickness / 2.0f;
 	private static readonly SKRect Rect = new(-ActualRadius, -ActualRadius, ActualRadius, ActualRadius);
+	private static readonly SKColor ValidColor = new(0xFF00FF00);
+	private static readonly SKColor LateColor = new(0xFFFF0000);
 
 	public Transform2D Transform { get; } = new() { Position = new(Radius, Radius) };
 
@@ -21,6 +24,7 @@ public class TickCountDownObject : ISkiaSharpRenderable, IDisposable
 	private readonly SkiaSharpRenderer renderer;
 	private readonly ClientService client;
 	private readonly GameSettings gameSettings;
+	private readonly GameOptions options;
 
 	private float tickStart = 0.0f;
 
@@ -30,7 +34,8 @@ public class TickCountDownObject : ISkiaSharpRenderable, IDisposable
 		IGameManager gameManager,
 		SkiaSharpRenderer renderer,
 		ClientService client,
-		GameSettings gameSettings)
+		GameSettings gameSettings,
+		IOptions<GameOptions> options)
 	{
 		this.gameManager = gameManager;
 
@@ -41,6 +46,7 @@ public class TickCountDownObject : ISkiaSharpRenderable, IDisposable
 		this.client.OnMapUpdateEvent += OnMapUpdateEvent;
 
 		this.gameSettings = gameSettings;
+		this.options = options.Value;
 	}
 
 	private void OnMapUpdateEvent(MapUpdateEvent mapUpdateEvent)
@@ -50,8 +56,16 @@ public class TickCountDownObject : ISkiaSharpRenderable, IDisposable
 
 	public void Render(SKCanvas canvas)
 	{
-		using var paint = new SKPaint() { Color = new(0xFF00FF00), StrokeWidth = Thickness, IsStroke = true, IsAntialias = true };
-		canvas.DrawArc(Rect, -90.0f, (gameManager.Time - tickStart) / timePerTick * 360.0f, false, paint);
+		float percentage = (gameManager.Time - tickStart) / timePerTick;
+		
+		using var validPaint = new SKPaint() { Color = ValidColor, StrokeWidth = Thickness, IsStroke = true, IsAntialias = true };
+		canvas.DrawArc(Rect, -90.0f, MathF.Min(percentage, options.TickTimePercentage) * 360.0f, false, validPaint);
+
+		if (percentage > options.TickTimePercentage)
+		{
+			using var latePaint = new SKPaint() { Color = LateColor, StrokeWidth = Thickness, IsStroke = true, IsAntialias = true };
+			canvas.DrawArc(Rect, 90.0f, MathF.Min(percentage - options.TickTimePercentage, 1.0f - options.TickTimePercentage) * 360.0f, false, latePaint);
+		}
 	}
 
 	public void Dispose()

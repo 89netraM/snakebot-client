@@ -5,6 +5,7 @@ using Cygni.Snake.Client.Models;
 using Mårten.Snake.Services;
 using Mårten.Snake.Services.Controllers;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Zarya;
 
 namespace Mårten.Snake.GameObjects;
@@ -19,6 +20,7 @@ public class ControllerObject : IDisposable
 
 	private readonly Guid gameId;
 	private readonly GameSettings gameSettings;
+	private readonly GameOptions options;
 	private (long tick, float time)? tickAndTime = null;
 	private Queue<Direction> directionQueue = new();
 
@@ -31,7 +33,8 @@ public class ControllerObject : IDisposable
 		ControllerBase controller,
 		ILogger<ControllerObject> logger,
 		Guid gameId,
-		GameSettings gameSettings)
+		GameSettings gameSettings,
+		IOptions<GameOptions> options)
 	{
 		this.gameManager = gameManager;
 		this.gameManager.Update += OnUpdate;
@@ -47,6 +50,7 @@ public class ControllerObject : IDisposable
 
 		this.gameId = gameId;
 		this.gameSettings = gameSettings;
+		this.options = options.Value;
 	}
 
 	private void OnMapUpdateEvent(MapUpdateEvent mapUpdateEvent)
@@ -82,7 +86,7 @@ public class ControllerObject : IDisposable
 			directionQueue.Dequeue();
 		}
 
-		if (tickAndTime is (long tick, float time) && gameManager.Time > time + timePerTick * 0.75f)
+		if (tickAndTime is (long tick, float time) && gameManager.Time > time + timePerTick * options.TickTimePercentage)
 		{
 			if (GetMove(tick) is Direction dir)
 			{
