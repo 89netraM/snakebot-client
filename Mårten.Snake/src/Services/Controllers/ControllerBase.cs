@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Cygni.Snake.Client.Messages;
 using Cygni.Snake.Client.Models;
 using Cygni.Snake.Utils;
 using Microsoft.Extensions.Logging;
@@ -32,7 +31,7 @@ public abstract class ControllerBase : IDisposable
 		CancelAndReset();
 		logger.LogTrace("Running new direction calculation");
 		directionCalculation = Task.Run(
-			() => CalculateDirection(mapInfo, cancellationSource.Token),
+			() => CalculateDirectionInternal(mapInfo, cancellationSource.Token),
 			cancellationSource.Token);
 	}
 
@@ -57,6 +56,19 @@ public abstract class ControllerBase : IDisposable
 			logger.LogTrace("Canceling controller");
 			cancellationSource.Cancel();
 			cancellationSource = new CancellationTokenSource();
+		}
+	}
+
+	private Direction CalculateDirectionInternal(MapInfo mapInfo, CancellationToken cancellationToken)
+	{
+		try
+		{
+			return CalculateDirection(mapInfo, cancellationToken);
+		}
+		catch (Exception ex)
+		{
+			logger.LogError(ex, $"Could not find a possible direction, continuuing current direction ({mapInfo.PlayerSnake.HeadDirection})");
+			return mapInfo.PlayerSnake.HeadDirection;
 		}
 	}
 
