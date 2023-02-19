@@ -47,13 +47,16 @@ public class StarterObject : IDisposable
 		gameManager.Destroy(this);
 	}
 
-	private void OnUpdate(float deltaTime)
+	private async void OnUpdate(float deltaTime)
 	{
 		if (!hasRequestedStart && input.Start())
 		{
-			client.SendMessage(new StartGame());
 			hasRequestedStart = true;
 			logger.LogInformation("Starting game");
+			if (!await client.Start())
+			{
+				hasRequestedStart = false;
+			}
 		}
 	}
 

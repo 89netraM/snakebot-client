@@ -57,15 +57,17 @@ public class ClientService : IDisposable
 		MessageLoop(cancellationToken);
 	}
 
-	public async Task Start(CancellationToken? cancellationToken = null)
+	public async Task<bool> Start(CancellationToken? cancellationToken = null)
 	{
 		if (options.GameMode is not GameMode.Training)
 		{
-			throw new InvalidOperationException("Cannot start a non-training game");
+			logger.LogInformation("Cannot start a non-training game");
+			return false;
 		}
 
 		logger.LogInformation("Starting game");
 		await SendMessage(new StartGame(), cancellationToken);
+		return true;
 	}
 
 	public ValueTask SendMessage(Message message, CancellationToken? cancellationToken = null)
