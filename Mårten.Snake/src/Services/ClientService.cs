@@ -85,8 +85,16 @@ public class ClientService : IDisposable
 
 		while (IsConnected && !concreteCancellationToken.IsCancellationRequested)
 		{
-			Message? message = await client.ReceiveMessage(concreteCancellationToken);
-			LogMessage(message);
+			Message? message = null;
+			try
+			{
+				message = await client.ReceiveMessage(concreteCancellationToken);
+				LogMessage(message);
+			}
+			catch (Exception ex)
+			{
+				logger.LogError(ex, "Could receive message");
+			}
 			if (message is not null)
 			{
 				HandleMessage(message);
