@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Cygni.Snake.Client.Messages;
 using Cygni.Snake.Utils;
 using Mårten.Snake.Services;
 using SkiaSharp;
@@ -26,6 +25,8 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 	private int width = 0;
 	private int height = 0;
 
+	private MapGridObject grid;
+
 	public Transform2D Transform { get; } = new Transform2D();
 
 	public MapObject(MapInfoService mapInfoService, SilkWindow window, SkiaSharpRenderer renderer)
@@ -38,6 +39,8 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 
 		this.renderer = renderer;
 		this.renderer.AddRenderable(this);
+
+		grid = this.window.Create<MapGridObject>()!;
 	}
 
 	private void OnMapInfoUpdateEvent(MapInfo mapInfo)
@@ -92,7 +95,7 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 	{
 		RenderBackground(canvas);
 		RenderTiles(canvas);
-		RenderGrid(canvas);
+		UpdateGrid();
 	}
 
 	private void RenderBackground(SKCanvas canvas)
@@ -112,17 +115,12 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 		}
 	}
 
-	private void RenderGrid(SKCanvas canvas)
+	private void UpdateGrid()
 	{
-		if (mapInfo is not null)
-		{
-			using var paint = new SKPaint { Color = BorderColor, IsStroke = true, IsAntialias = true };
-			float tileSize = CalculateTileSize();
-			for (int x = 1; x < width; x++)
-				canvas.DrawLine(x * tileSize, 0, x * tileSize, height * tileSize, paint);
-			for (int y = 1; y < width; y++)
-				canvas.DrawLine(0, y * tileSize, width * tileSize, y * tileSize, paint);
-		}
+		grid.MapInfo = mapInfo;
+		grid.Width = width;
+		grid.Height = height;
+		grid.TileSize = CalculateTileSize();
 	}
 
 	private (float, float) CalculateMapSize()
@@ -151,5 +149,40 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 		renderer.RemoveRenderable(this);
 		mapInfoService.OnMapInfoUpdateEvent -= OnMapInfoUpdateEvent;
 		window.Update -= OnUpdate;
+	}
+
+	private class MapGridObject : ISkiaSharpRenderable, IDisposable
+	{
+		private readonly SkiaSharpRenderer renderer;
+
+		public MapInfo? MapInfo;
+		public int Width = 0;
+		public int Height = 0;
+		public float TileSize = 0.0f;
+
+		public Transform2D Transform { get; } = new Transform2D();
+
+		public MapGridObject(SkiaSharpRenderer renderer)
+		{
+			this.renderer = renderer;
+			this.renderer.AddRenderable(this, 5);
+		}
+
+		public void Render(SKCanvas canvas)
+		{
+			if (MapInfo is not null)
+			{
+				using var paint = new SKPaint { Color = BorderColor, IsStroke = true, IsAntialias = true };
+				for (int x = 1; x < Width; x++)
+					canvas.DrawLine(x * TileSize, 0, x * TileSize, Height * TileSize, paint);
+				for (int y = 1; y < Width; y++)
+					canvas.DrawLine(0, y * TileSize, Width * TileSize, y * TileSize, paint);
+			}
+		}
+
+		public void Dispose()
+		{
+			renderer.RemoveRenderable(this);
+		}
 	}
 }
