@@ -7,24 +7,24 @@ namespace Mårten.Snake.Services;
 
 public record InputService(IInputManager InputManager) : InputBase(InputManager)
 {
-	[KeyboardInput(Key.Up, InputState.Down)]
-	[KeyboardInput(Key.W, InputState.Down)]
-	[GamepadButtonInput(Button.DPadUp, InputState.Down)]
+	[KeyboardInput(Key.Up, InputState.Pressed)]
+	[KeyboardInput(Key.W, InputState.Pressed)]
+	[GamepadButtonInput(Button.DPadUp, InputState.Pressed)]
 	public InputButton Up { get; }
 
-	[KeyboardInput(Key.Left, InputState.Down)]
-	[KeyboardInput(Key.A, InputState.Down)]
-	[GamepadButtonInput(Button.DPadLeft, InputState.Down)]
+	[KeyboardInput(Key.Left, InputState.Pressed)]
+	[KeyboardInput(Key.A, InputState.Pressed)]
+	[GamepadButtonInput(Button.DPadLeft, InputState.Pressed)]
 	public InputButton Left { get; }
 
-	[KeyboardInput(Key.Right, InputState.Down)]
-	[KeyboardInput(Key.D, InputState.Down)]
-	[GamepadButtonInput(Button.DPadRight, InputState.Down)]
+	[KeyboardInput(Key.Right, InputState.Pressed)]
+	[KeyboardInput(Key.D, InputState.Pressed)]
+	[GamepadButtonInput(Button.DPadRight, InputState.Pressed)]
 	public InputButton Right { get; }
 
-	[KeyboardInput(Key.Down, InputState.Down)]
-	[KeyboardInput(Key.S, InputState.Down)]
-	[GamepadButtonInput(Button.DPadDown, InputState.Down)]
+	[KeyboardInput(Key.Down, InputState.Pressed)]
+	[KeyboardInput(Key.S, InputState.Pressed)]
+	[GamepadButtonInput(Button.DPadDown, InputState.Pressed)]
 	public InputButton Down { get; }
 
 	[KeyboardInput(Key.Enter, InputState.Down)]

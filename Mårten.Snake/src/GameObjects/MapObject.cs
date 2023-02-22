@@ -7,12 +7,15 @@ using Zarya.Silk.NET;
 using Zarya.SkiaSharp;
 using Zarya;
 using System.Linq;
+using Mårten.Snake.Utils;
 
 namespace Mårten.Snake.GameObjects;
 
 public class MapObject : ISkiaSharpRenderable, IDisposable
 {
 	private static readonly SKColor BackgroundColor = new(0xFF11295A);
+	private static readonly SKColor GoodPositionColor = new(0xFFFFFF00);
+	private static readonly SKColor GoodSectionColor = new(0xFF00FF00);
 	private static readonly SKColor BorderColor = new(0xFF000000);
 
 	private readonly MapInfoService mapInfoService;
@@ -94,6 +97,7 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 	public void Render(SKCanvas canvas)
 	{
 		RenderBackground(canvas);
+		RenderGoodSections(canvas);
 		RenderTiles(canvas);
 		UpdateGrid();
 	}
@@ -103,6 +107,28 @@ public class MapObject : ISkiaSharpRenderable, IDisposable
 		var (pixelWidth, pixelHeight) = CalculateMapSize();
 		using var paint = new SKPaint { Color = BackgroundColor };
 		canvas.DrawRect(0, 0, pixelWidth, pixelHeight, paint);
+	}
+
+	private void RenderGoodSections(SKCanvas canvas)
+	{
+		if (mapInfo?.GoodPositions() is ISet<Vector2> goodPositions)
+		{
+			float tileSize = CalculateTileSize();
+			using var paint = new SKPaint { Color = GoodPositionColor };
+			foreach (var pos in goodPositions)
+			{
+				canvas.DrawRect(pos.X * tileSize, pos.Y * tileSize, tileSize, tileSize, paint);
+			}
+		}
+		if (mapInfo?.GoodSection() is ISet<Vector2> goodSection)
+		{
+			float tileSize = CalculateTileSize();
+			using var paint = new SKPaint { Color = GoodSectionColor };
+			foreach (var pos in goodSection)
+			{
+				canvas.DrawRect(pos.X * tileSize, pos.Y * tileSize, tileSize, tileSize, paint);
+			}
+		}
 	}
 
 	private void RenderTiles(SKCanvas canvas)

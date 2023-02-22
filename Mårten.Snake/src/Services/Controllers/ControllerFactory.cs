@@ -10,6 +10,8 @@ public static class ControllerFactory
 	private static readonly IReadOnlyDictionary<string, Type> controllers = new Dictionary<string, Type>
 	{
 		["Edge"] = typeof(EdgeController),
+		["Food"] = typeof(FoodController),
+		["Nibler"] = typeof(NiblerController),
 	};
 
 	public static ControllerBase Factory(IServiceProvider services)

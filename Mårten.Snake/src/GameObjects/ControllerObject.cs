@@ -25,7 +25,6 @@ public class ControllerObject : IDisposable
 	private readonly GameOptions options;
 	private MapInfo? mapInfo;
 	private (long tick, float time)? tickAndTime = null;
-	private Queue<Direction> directionQueue = new();
 
 	private float timePerTick => gameSettings.TimeInMsPerTick / 1000.0f;
 
@@ -44,6 +43,7 @@ public class ControllerObject : IDisposable
 		this.gameManager.Update += OnUpdate;
 
 		this.client = client;
+		this.client.OnGameEndedEvent += OnGameEndedEvent;
 
 		this.mapInfoService = mapInfoService;
 		this.mapInfoService.OnMapInfoUpdateEvent += OnMapInfoUpdateEvent;
@@ -68,31 +68,6 @@ public class ControllerObject : IDisposable
 
 	private async void OnUpdate(float deltaTime)
 	{
-		if (input.Up())
-		{
-			directionQueue.Enqueue(Direction.Up);
-			logger.LogDebug("Input Up");
-		}
-		else if (input.Left())
-		{
-			directionQueue.Enqueue(Direction.Left);
-			logger.LogDebug("Input Left");
-		}
-		else if (input.Right())
-		{
-			directionQueue.Enqueue(Direction.Right);
-			logger.LogDebug("Input Right");
-		}
-		else if (input.Down())
-		{
-			directionQueue.Enqueue(Direction.Down);
-			logger.LogDebug("Input Down");
-		}
-		while (directionQueue.Count > 2)
-		{
-			directionQueue.Dequeue();
-		}
-
 		if (tickAndTime is (long tick, float time) && gameManager.Time > time + timePerTick * options.TickTimePercentage)
 		{
 			if (GetMove(tick) is Direction dir)
@@ -111,9 +86,15 @@ public class ControllerObject : IDisposable
 		}
 	}
 
+	private void OnGameEndedEvent(GameEndedEvent _)
+	{
+		gameManager.Create<StarterObject>();
+		gameManager.Destroy(this);
+	}
+
 	private Direction? GetMove(long tick)
 	{
-		if (directionQueue.TryDequeue(out Direction dir))
+		if (GetUserMove() is Direction dir)
 		{
 			if (mapInfo?.IsOpen(mapInfo.PlayerSnake.Positions[0] + dir) ?? false)
 			{
@@ -134,6 +115,27 @@ public class ControllerObject : IDisposable
 		{
 			return null;
 		}
+	}
+
+	private Direction? GetUserMove()
+	{
+		if (input.Up())
+		{
+			return Direction.Up;
+		}
+		else if (input.Left())
+		{
+			return Direction.Left;
+		}
+		else if (input.Right())
+		{
+			return Direction.Right;
+		}
+		else if (input.Down())
+		{
+			return Direction.Down;
+		}
+		return null;
 	}
 
 	public void Dispose()

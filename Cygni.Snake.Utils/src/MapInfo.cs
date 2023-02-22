@@ -90,6 +90,32 @@ public class MapInfo
 	}
 
 	public bool CanSnakeMoveTo(Guid snakeId, Vector2 target) =>
-		this[target].CanMoveTo(Settings.HeadToTailConsumes) &&
-			Snakes[snakeId].Positions[0].Distance(target) == 1;
+		IsOpenTo(snakeId, target) && Snakes[snakeId].Positions[0].Distance(target) == 1;
+
+	public bool IsOpenTo(Guid snakeId, Vector2 target) =>
+		PretendersTo(target).All(id => id == snakeId) &&
+			this[target] switch
+			{
+				OutOfBoundsTile => false,
+				EmptyTile => true,
+				ObstacleTile => false,
+				FoodTile => true,
+				SnakeHeadTile => false,
+				SnakeBodyTile => false,
+				SnakeTailTile(Guid tailId, _, _, long protectedForTicks) =>
+					Settings.HeadToTailConsumes &&
+						snakeId != tailId &&
+						protectedForTicks == 0,
+				var tile => throw new InvalidOperationException($"Unknown Tile found ({tile})"),
+			};
+
+	public bool IsOpen(Vector2 target) => this[target] switch
+	{
+		OutOfBoundsTile => false,
+		EmptyTile => true,
+		ObstacleTile => false,
+		FoodTile => true,
+		SnakeTile => false,
+		var tile => throw new InvalidOperationException($"Unknown Tile found ({tile})"),
+	};
 }
