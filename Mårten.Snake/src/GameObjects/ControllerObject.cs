@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Cygni.Snake.Client.Messages;
 using Cygni.Snake.Client.Models;
+using Cygni.Snake.Utils;
 using Mårten.Snake.Services;
 using Mårten.Snake.Services.Controllers;
 using Microsoft.Extensions.Logging;
@@ -14,6 +15,7 @@ public class ControllerObject : IDisposable
 {
 	private readonly IGameManager gameManager;
 	private readonly ClientService client;
+	private readonly MapInfoService mapInfoService;
 	private readonly InputService input;
 	private readonly ControllerBase controller;
 	private readonly ILogger<ControllerObject> logger;
@@ -21,6 +23,7 @@ public class ControllerObject : IDisposable
 	private readonly Guid gameId;
 	private readonly GameSettings gameSettings;
 	private readonly GameOptions options;
+	private MapInfo? mapInfo;
 	private (long tick, float time)? tickAndTime = null;
 	private Queue<Direction> directionQueue = new();
 
@@ -29,6 +32,7 @@ public class ControllerObject : IDisposable
 	public ControllerObject(
 		IGameManager gameManager,
 		ClientService client,
+		MapInfoService mapInfoService,
 		InputService input,
 		ControllerBase controller,
 		ILogger<ControllerObject> logger,
@@ -40,7 +44,9 @@ public class ControllerObject : IDisposable
 		this.gameManager.Update += OnUpdate;
 
 		this.client = client;
-		this.client.OnMapUpdateEvent += OnMapUpdateEvent;
+
+		this.mapInfoService = mapInfoService;
+		this.mapInfoService.OnMapInfoUpdateEvent += OnMapInfoUpdateEvent;
 
 		this.input = input;
 
@@ -53,9 +59,10 @@ public class ControllerObject : IDisposable
 		this.options = options.Value;
 	}
 
-	private void OnMapUpdateEvent(MapUpdateEvent mapUpdateEvent)
+	private void OnMapInfoUpdateEvent(MapInfo mapInfo)
 	{
-		tickAndTime = (mapUpdateEvent.GameTick, gameManager.Time);
+		tickAndTime = (mapInfo.WorldTick, gameManager.Time);
+		this.mapInfo = mapInfo;
 		logger.LogDebug($"Map update {tickAndTime}");
 	}
 
@@ -108,10 +115,17 @@ public class ControllerObject : IDisposable
 	{
 		if (directionQueue.TryDequeue(out Direction dir))
 		{
-			logger.LogDebug($"Register user move {dir} for tick {tick}");
-			return dir;
+			if (mapInfo?.IsOpen(mapInfo.PlayerSnake.Positions[0] + dir) ?? false)
+			{
+				logger.LogDebug($"Register user move {dir} for tick {tick}");
+				return dir;
+			}
+			else
+			{
+				logger.LogWarning($"User move ({dir}) for tick {tick} is invalid");
+			}
 		}
-		else if (controller.ProposedDirection is Direction proposedDir)
+		if (controller.ProposedDirection is Direction proposedDir)
 		{
 			logger.LogDebug($"Register calculated move {proposedDir} for tick {tick}");
 			return proposedDir;
@@ -124,7 +138,7 @@ public class ControllerObject : IDisposable
 
 	public void Dispose()
 	{
-		this.client.OnMapUpdateEvent -= OnMapUpdateEvent;
+		this.mapInfoService.OnMapInfoUpdateEvent -= OnMapInfoUpdateEvent;
 		this.gameManager.Update -= OnUpdate;
 	}
 }
