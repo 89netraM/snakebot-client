@@ -68,7 +68,7 @@ public class EdgeController : ControllerBase
 					{
 						if (pathToSections.TryGetValue(section.Count, out var pathToSection))
 						{
-							if (pathToSections.Count() >= pathToSection.Count())
+							if (path.Count() >= pathToSection.Count())
 							{
 								continue;
 							}
