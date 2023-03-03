@@ -26,6 +26,18 @@ public record Vector2(int X, int Y)
 
 	public IEnumerable<(Direction dir, Vector2 pos)> Neighbors =>
 		Directions.Select(d => (d.Key, this + d.Value));
+	public IEnumerable<Vector2> MooreNeighbors =>
+		new[]
+		{
+			this + new Vector2(0, -1),
+			this + new Vector2(1, -1),
+			this + new Vector2(1, 0),
+			this + new Vector2(1, 1),
+			this + new Vector2(0, 1),
+			this + new Vector2(-1, 1),
+			this + new Vector2(-1, 0),
+			this + new Vector2(-1, -1),
+		};
 
 	public int Distance(Vector2 other) =>
 		(other - this).Length;

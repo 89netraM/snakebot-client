@@ -25,7 +25,6 @@ public class EdgeController : ControllerBase
 		var sections = mapInfo.Sections();
 
 		var goodSection = sections.MaxBy(s => s.Count)!;
-		// if (goodSection.Contains(head))
 		if (head.Neighbors.Select(p => p.pos).Any(goodSection.Contains))
 		{
 			var foundPath = BFS.Search(
@@ -34,18 +33,14 @@ public class EdgeController : ControllerBase
 					.Select(p => p.pos)
 					.Where(p => goodSection.Contains(p) && mapInfo.PretendersTo(p).All(id => id == mapInfo.PlayerId)),
 				pos => pos != head &&
-					pos.Neighbors
-						.Select(p => p.pos)
+					pos.MooreNeighbors
 						.Any(pos => !mapInfo.IsOpenTo(mapInfo.PlayerId, pos) &&
 							!(mapInfo[pos] is SnakeTile(Guid id, _) && id == mapInfo.PlayerId)),
 				out var path);
 			
-			if (!foundPath)
+			if (foundPath)
 			{
-				logger.LogWarning("Could not find a good path to the edge");
-			}
-			else
-			{
+				logger.LogInformation("Gooing to edge");
 				return Vector2.ReverseDirections[path.First() - head];
 			}
 		}
@@ -79,7 +74,28 @@ public class EdgeController : ControllerBase
 				}
 			});
 
-		var bestPath = pathToSections.MaxBy(kvp => kvp.Key).Value;
-		return Vector2.ReverseDirections[bestPath.First() - head];
+		if (pathToSections.Any())
+		{
+			var bestPath = pathToSections.MaxBy(kvp => kvp.Key).Value;
+			logger.LogInformation("Taking shortest to good");
+			return Vector2.ReverseDirections[bestPath.First() - head];
+		}
+
+		var avaliablePaths = new List<IEnumerable<Vector2>>();
+		BFS.Search(
+			head,
+			pos => pos.Neighbors
+				.Select(p => p.pos)
+				.Where(mapInfo.IsOpen),
+			_ => false,
+			out _,
+			path =>
+			{
+				avaliablePaths.Add(path);
+			});
+
+		var longestPath = avaliablePaths.MaxBy(path => path.Count())!;
+		logger.LogInformation("Taking longest path");
+		return Vector2.ReverseDirections[longestPath.First() - head];
 	}
 }

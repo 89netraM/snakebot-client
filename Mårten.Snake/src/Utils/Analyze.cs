@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cygni.Snake.Utils;
@@ -6,6 +7,8 @@ namespace Mårten.Snake.Utils;
 
 public static class Analyze
 {
+	// private const int DangerZone = 5;
+
 	public static bool AreConnected(this MapInfo mapInfo, Vector2 a, Vector2 b) =>
 		BFS.Search(
 			a,
@@ -121,24 +124,61 @@ public static class Analyze
 		var count = new HashSet<Vector2>();
 
 		for (int y = 0; y < mapInfo.Height; y++)
+		{
 			for (int x = 0; x < mapInfo.Width; x++)
 			{
 				var pos = new Vector2(x, y);
-				if (mapInfo.IsOpen(pos) && mapInfo.OpenNeighbors(pos) > 2)
+				if (mapInfo.IsOpen(pos) && mapInfo.OpenNeighbors(pos) > 2)// && /*PretendedByOthers(pos) &&*/ IsClosest(pos))
 				{
 					count.Add(pos);
 				}
 			}
+		}
 
 		return count;
+
+		// bool PretendedByOthers(Vector2 pos) =>
+		// 	pos.Neighbors
+		// 		.Select(p => p.pos)
+		// 		.All(p => !mapInfo.Snakes
+		// 			.Values
+		// 			.Where(si => si.Id != mapInfo.PlayerId && si.Positions.Count > 0)
+		// 			.Select(si => si.Positions[0])
+		// 			.Contains(p));
+
+		// bool IsClosest(Vector2 pos)
+		// {
+		// 	var me = mapInfo.PlayerSnake.Positions[0];
+		// 	var distToMe = pos.Distance(me);
+		// 	var realDistToMe = new Lazy<int>(() => mapInfo.DistanceBetween(pos, me));
+		// 	return mapInfo.Snakes
+		// 		.Values
+		// 		.Where(si => si.Id != mapInfo.PlayerId && si.Positions.Count > 0)
+		// 		.Select(si => si.Positions[0])
+		// 		.Select(o => (pos, d: pos.Distance(o)))
+		// 		.All(p => p.d >= DangerZone || p.d >= distToMe || mapInfo.DistanceBetween(pos, p.pos) >= realDistToMe.Value);
+		// }
 	}
+
+	// private static int DistanceBetween(this MapInfo mapInfo, Vector2 a, Vector2 b)
+	// {
+	// 	var found = BFS.Search(
+	// 		a,
+	// 		pos => pos.Neighbors
+	// 			.Select(p => p.pos)
+	// 			.Where(pos => a.Distance(pos) < DangerZone && mapInfo.IsOpen(pos)),
+	// 		pos => pos == b,
+	// 		out var path);
+	// 	return found ? path.Count() : int.MaxValue;
+	// }
 
 	private static int OpenNeighbors(this MapInfo mapInfo, Vector2 pos)
 	{
 		var neighbors = pos.Neighbors.Select(p => p.pos).ToArray();
-		// return neighbors.Count(mapInfo.IsOpen) +
-		return neighbors.Count(p => mapInfo.IsOpen(p) || mapInfo.PlayerSnake.Positions[0] == p) +
+		var head = mapInfo.PlayerSnake.Positions[0];
+		return neighbors.Count(p => mapInfo.IsOpen(p) || head == p) +
 			neighbors.Zip(neighbors.Skip(1).Append(neighbors[0]))
-				.Count(p => mapInfo.IsOpen(p.First) && mapInfo.IsOpen(p.Second));
+				.Count(p => (mapInfo.IsOpen(p.First) || head == p.First) &&
+					(mapInfo.IsOpen(p.Second) || head == p.Second));
 	}
 }
