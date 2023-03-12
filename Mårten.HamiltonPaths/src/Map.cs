@@ -24,18 +24,93 @@ public class Map
 
 	private void RouteCalculation()
 	{
-		var zero = new Vector2(0, 0);
-		var pathFrom = HamiltonCycle(zero, new(Width, Height));
-		var path = new List<Vector2> { zero, pathFrom[zero] };
-		while (path[^1] != zero)
+		var section = StripOff(new(new(0, 0), new(Width, Height)));
+		if (section is null)
+		{
+			return;
+		}
+		var pathFrom = HamiltonCycle(section);
+		var (first, second) = pathFrom.First();
+		var path = new List<Vector2> { first, second };
+		while (path[^1] != first)
 		{
 			path.Add(pathFrom[path[^1]]);
 		}
 		Path = path;
 	}
 
-	private IDictionary<Vector2, Vector2> HamiltonCycle(Vector2 offset, Vector2 size)
+	private Rect? StripOff(Rect rect)
 	{
+		var points = new List<Vector2>();
+		if (rect.IsIn(Start!))
+		{
+			points.Add(Start!);
+		}
+		if (rect.IsIn(End!))
+		{
+			points.Add(End!);
+		}
+
+		var rects = new List<Rect>();
+
+		var leftWidth = points.Append(rect.Offset + rect.Size).Min(p => p.X) - rect.Offset.X;
+		Vector2 leftSize;
+		if (Int32.IsEvenInteger(leftWidth) || Int32.IsEvenInteger(rect.Size.Y))
+		{
+			leftSize = new(leftWidth, rect.Size.Y);
+		}
+		else
+		{
+			leftSize = new(leftWidth - 1, rect.Size.Y);
+		}
+		rects.Add(new(rect.Offset, leftSize));
+
+		var topHeight = points.Append(rect.Offset + rect.Size).Min(p => p.Y) - rect.Offset.Y;
+		Vector2 topSize;
+		if (Int32.IsEvenInteger(topHeight) || Int32.IsEvenInteger(rect.Size.X))
+		{
+			topSize = new(rect.Size.X, topHeight);
+		}
+		else
+		{
+			topSize = new(rect.Size.X, topHeight - 1);
+		}
+		rects.Add(new(rect.Offset, topSize));
+
+		var rightPoint = points.Append(rect.Offset).Max(p => p.X) + 1;
+		var rightWidth = rect.Size.X - (rightPoint - rect.Offset.X);
+		Rect right;
+		if (Int32.IsEvenInteger(rightWidth) || Int32.IsEvenInteger(rect.Size.Y))
+		{
+			right = new(new(rightPoint, rect.Offset.Y), new(rightWidth, rect.Size.Y));
+		}
+		else
+		{
+			right = new(new(rightPoint + 1, rect.Offset.Y), new(rightWidth - 1, rect.Size.Y));
+		}
+		rects.Add(right);
+
+		var bottomPoint = points.Append(rect.Offset).Max(p => p.Y) + 1;
+		var bottomHeight = rect.Size.Y - (bottomPoint - rect.Offset.Y);
+		Rect bottom;
+		if (Int32.IsEvenInteger(bottomHeight) || Int32.IsEvenInteger(rect.Size.X))
+		{
+			bottom = new(new(rect.Offset.X, bottomPoint), new(rect.Size.X, bottomHeight));
+		}
+		else
+		{
+			bottom = new(new(rect.Offset.X, bottomPoint + 1), new(rect.Size.X, bottomHeight - 1));
+		}
+		rects.Add(bottom);
+
+		return rects
+			.Where(r => r.IsHamiltonian())
+			.MaxBy(r => r.Area);
+	}
+
+	private IDictionary<Vector2, Vector2> HamiltonCycle(Rect rect)
+	{
+		var (offset, size) = rect;
 		if (size.X == 1 && size.Y == 1)
 		{
 			return new Dictionary<Vector2, Vector2> { [offset] = offset };
@@ -72,8 +147,8 @@ public class Map
 		}
 		if (Int32.IsEvenInteger(size.Y) && size.X > 1)
 		{
-			var top = HamiltonCycle(offset, new(size.X, 2));
-			var rest = HamiltonCycle(new(offset.X, offset.Y + 2), new(size.X, size.Y - 2));
+			var top = HamiltonCycle(new(offset, new(size.X, 2)));
+			var rest = HamiltonCycle(new(new(offset.X, offset.Y + 2), new(size.X, size.Y - 2)));
 
 			foreach (var (from, to) in top)
 			{
@@ -87,8 +162,8 @@ public class Map
 		}
 		if (Int32.IsEvenInteger(size.X) && size.Y > 1)
 		{
-			var top = HamiltonCycle(offset, new(2, size.Y));
-			var rest = HamiltonCycle(new(offset.X + 2, offset.Y), new(size.X - 2, size.Y));
+			var top = HamiltonCycle(new(offset, new(2, size.Y)));
+			var rest = HamiltonCycle(new(new(offset.X + 2, offset.Y), new(size.X - 2, size.Y)));
 
 			foreach (var (from, to) in top)
 			{

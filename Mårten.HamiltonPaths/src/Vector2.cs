@@ -34,4 +34,7 @@ public record Vector2(int X, int Y)
 
 	public static implicit operator Vector2((int x, int y) pair) =>
 		new(pair.x, pair.y);
+
+	public override string ToString() =>
+		$"({X}, {Y})";
 }
